@@ -176,7 +176,7 @@ async Task<bool> TestJiraConnectionAsync(string serverUrl, string email, string 
     }
 }
 
-async Task<List<JiraWorklog>> FetchWorklogsFromJiraAsync(string serverUrl, string email, string apiToken, DateTime date)
+async Task<List<JiraWorklog>> ImportWorklogsFromJiraAsync(string serverUrl, string email, string apiToken, DateTime date)
 {
     var worklogs = new List<JiraWorklog>();
 
@@ -972,7 +972,7 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
     });
 }
 
-async void FetchWorklogsClick(object sender, RoutedEventArgs e)
+async void ImportWorklogsClick(object sender, RoutedEventArgs e)
 {
     await Extension.OnUiThreadAsync(async () =>
     {
@@ -987,11 +987,11 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
             return;
         }
 
-        var dialog = (Window)Extension.LoadUiElement("FetchWorklogsDialog.xaml");
+        var dialog = (Window)Extension.LoadUiElement("ImportWorklogsDialog.xaml");
 
         var connectionComboBox = (ComboBox)dialog.FindName("connectionComboBox");
         var worklogDate = (DatePicker)dialog.FindName("worklogDate");
-        var fetchButton = (Button)dialog.FindName("fetchButton");
+        var importButton = (Button)dialog.FindName("importButton");
         var cancelButton = (Button)dialog.FindName("cancelButton");
         var statusMessage = (TextBlock)dialog.FindName("statusMessage");
 
@@ -1001,12 +1001,12 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
 
         worklogDate.SelectedDate = DateTime.Today;
 
-        fetchButton.Click += async (s, args) =>
+        importButton.Click += async (s, args) =>
         {
             try
             {
-                fetchButton.IsEnabled = false;
-                statusMessage.Text = "Fetching worklogs from Jira...";
+                importButton.IsEnabled = false;
+                statusMessage.Text = "Importing worklogs from Jira...";
 
                 var selectedConnection = connectionComboBox.SelectedItem as JiraConnection;
                 var selectedDate = worklogDate.SelectedDate;
@@ -1015,7 +1015,7 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
                 {
                     MessageDialog.Present(dialog, "Please select a Jira connection.", "Missing Connection", MessageBoxImage.Warning);
                     statusMessage.Text = "";
-                    fetchButton.IsEnabled = true;
+                    importButton.IsEnabled = true;
                     return;
                 }
 
@@ -1023,11 +1023,11 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
                 {
                     MessageDialog.Present(dialog, "Please select a date.", "Missing Date", MessageBoxImage.Warning);
                     statusMessage.Text = "";
-                    fetchButton.IsEnabled = true;
+                    importButton.IsEnabled = true;
                     return;
                 }
 
-                var worklogs = await FetchWorklogsFromJiraAsync(
+                var worklogs = await ImportWorklogsFromJiraAsync(
                     selectedConnection.ServerUrl,
                     selectedConnection.Email,
                     selectedConnection.ApiToken,
@@ -1040,7 +1040,7 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
                         "No Worklogs",
                         MessageBoxImage.Information);
                     statusMessage.Text = "";
-                    fetchButton.IsEnabled = true;
+                    importButton.IsEnabled = true;
                     return;
                 }
 
@@ -1053,7 +1053,7 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
                 {
                     MessageDialog.Present(dialog, "No person found in Grindstone. Please create a person first.", "Error", MessageBoxImage.Error);
                     statusMessage.Text = "";
-                    fetchButton.IsEnabled = true;
+                    importButton.IsEnabled = true;
                     return;
                 }
 
@@ -1069,8 +1069,8 @@ async void FetchWorklogsClick(object sender, RoutedEventArgs e)
             catch (Exception ex)
             {
                 statusMessage.Text = "";
-                ShowErrorDialog("Error Fetching Worklogs", "Failed to fetch worklogs from Jira. Please check the connection and date settings.", ex);
-                fetchButton.IsEnabled = true;
+                ShowErrorDialog("Error Importing Worklogs", "Failed to import worklogs from Jira. Please check the connection and date settings.", ex);
+                importButton.IsEnabled = true;
             }
         };
 
@@ -1094,12 +1094,12 @@ await Extension.OnUiThreadAsync(() =>
     var fetchMenuItem = new RadMenuItem { Header = "Fetch from Jira" };
     fetchMenuItem.Click += FetchFromJiraClick;
 
-    var fetchWorklogsMenuItem = new RadMenuItem { Header = "Fetch Worklogs" };
-    fetchWorklogsMenuItem.Click += FetchWorklogsClick;
+    var importWorklogsMenuItem = new RadMenuItem { Header = "Import Worklogs" };
+    importWorklogsMenuItem.Click += ImportWorklogsClick;
 
     jiraMenuItem.Items.Add(manageConnectionsMenuItem);
     jiraMenuItem.Items.Add(fetchMenuItem);
-    jiraMenuItem.Items.Add(fetchWorklogsMenuItem);
+    jiraMenuItem.Items.Add(importWorklogsMenuItem);
 
     Extension.PostMessage(extensionsMenuExtensionId, jiraMenuItem);
 });

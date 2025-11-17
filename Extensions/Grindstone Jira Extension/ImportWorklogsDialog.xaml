@@ -1,7 +1,7 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Height="280" Width="500"
-        Title="Fetch Worklogs from Jira"
+        Title="Import Worklogs from Jira"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">
     <Grid Margin="10">
@@ -24,18 +24,18 @@
 
         <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">Date:</TextBlock>
         <DatePicker Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" x:Name="worklogDate"
-                    ToolTip="Select the date to fetch worklogs for" />
+                    ToolTip="Select the date to import worklogs for" />
 
         <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,10"
                    TextWrapping="Wrap" FontSize="10" Foreground="Gray">
-            This will fetch all your worklogs from Jira for the selected date and create time entries in Grindstone. Work items will be created automatically if they don't exist.
+            This will import all your worklogs from Jira for the selected date and create time entries in Grindstone. Work items will be created automatically if they don't exist.
         </TextBlock>
 
         <TextBlock Grid.Row="3" Grid.ColumnSpan="2" x:Name="statusMessage"
                    TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,10,0,10" />
 
         <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="fetchButton" Width="100" Margin="0,0,10,0" Padding="5">Fetch Worklogs</Button>
+            <Button x:Name="importButton" Width="100" Margin="0,0,10,0" Padding="5">Import Worklogs</Button>
             <Button x:Name="cancelButton" Width="100" Padding="5">Cancel</Button>
         </StackPanel>
     </Grid>
