@@ -1,15 +1,11 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Height="400" Width="500"
+        Height="300" Width="500"
         Title="Fetch from Jira"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -21,41 +17,25 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">Jira Server URL:</TextBlock>
-        <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" x:Name="jiraServerUrl"
-                 Text="{Binding JiraServerUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 ToolTip="e.g., https://yourcompany.atlassian.net" />
+        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">Jira Connection:</TextBlock>
+        <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10" x:Name="connectionComboBox"
+                  DisplayMemberPath="Name"
+                  ToolTip="Select a configured Jira connection" />
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">Email:</TextBlock>
-        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" x:Name="jiraEmail"
-                 Text="{Binding JiraEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 ToolTip="Your Jira account email" />
-
-        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">API Token:</TextBlock>
-        <PasswordBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" x:Name="jiraApiToken"
-                     ToolTip="Generate from Jira Account Settings > Security > API Tokens" />
-
-        <Separator Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,10" />
-
-        <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">Issue Key:</TextBlock>
-        <TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,0,10" x:Name="issueKey"
+        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,10,10" VerticalAlignment="Center">Issue Key:</TextBlock>
+        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,10" x:Name="issueKey"
                  Text="{Binding IssueKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  ToolTip="e.g., PROJ-123" />
 
-        <CheckBox Grid.Row="5" Grid.ColumnSpan="2" Margin="0,0,0,10" x:Name="saveCredentials"
-                  IsChecked="{Binding SaveCredentials, Mode=TwoWay}">
-            Save credentials (stored in database)
-        </CheckBox>
-
-        <TextBlock Grid.Row="6" Grid.ColumnSpan="2" Margin="0,0,0,10"
+        <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,10"
                    TextWrapping="Wrap" FontSize="10" Foreground="Gray">
-            Note: Generate an API token from your Jira account settings (Account Settings > Security > API Tokens)
+            Use "Jira Integration > Manage Connections" to add or edit Jira server connections.
         </TextBlock>
 
-        <TextBlock Grid.Row="7" Grid.ColumnSpan="2" x:Name="statusMessage"
+        <TextBlock Grid.Row="3" Grid.ColumnSpan="2" x:Name="statusMessage"
                    TextWrapping="Wrap" VerticalAlignment="Top" Margin="0,10,0,10" />
 
-        <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button x:Name="fetchButton" Width="100" Margin="0,0,10,0" Padding="5">Fetch &amp; Create</Button>
             <Button x:Name="cancelButton" Width="100" Padding="5">Cancel</Button>
         </StackPanel>

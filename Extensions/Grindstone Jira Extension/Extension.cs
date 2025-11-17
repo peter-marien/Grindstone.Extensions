@@ -4,25 +4,79 @@ using Quantum.Entities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Dynamic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using Telerik.Windows.Controls;
+
+class JiraConnection
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string ServerUrl { get; set; }
+    public string Email { get; set; }
+    public string ApiToken { get; set; }
+
+    public JiraConnection()
+    {
+        Id = Guid.NewGuid().ToString();
+    }
+}
+
+const string JiraConnectionsStorageKey = "JiraConnections";
+
+List<JiraConnection> LoadJiraConnections()
+{
+    var serializer = new JavaScriptSerializer();
+    var json = Extension.DatabaseStorage?.Get<string>(JiraConnectionsStorageKey);
+    if (string.IsNullOrEmpty(json))
+        return new List<JiraConnection>();
+
+    try
+    {
+        var data = serializer.Deserialize<List<Dictionary<string, object>>>(json);
+        return data.Select(d => new JiraConnection
+        {
+            Id = d["Id"] as string,
+            Name = d["Name"] as string,
+            ServerUrl = d["ServerUrl"] as string,
+            Email = d["Email"] as string,
+            ApiToken = d["ApiToken"] as string
+        }).ToList();
+    }
+    catch
+    {
+        return new List<JiraConnection>();
+    }
+}
+
+void SaveJiraConnections(List<JiraConnection> connections)
+{
+    var serializer = new JavaScriptSerializer();
+    var data = connections.Select(c => new Dictionary<string, object>
+    {
+        { "Id", c.Id },
+        { "Name", c.Name },
+        { "ServerUrl", c.ServerUrl },
+        { "Email", c.Email },
+        { "ApiToken", c.ApiToken }
+    }).ToList();
+    var json = serializer.Serialize(data);
+    Extension.DatabaseStorage?.Set(JiraConnectionsStorageKey, json);
+}
 
 class FetchFromJiraDialogContext : INotifyPropertyChanged
 {
-    string jiraServerUrl = "";
-    string jiraEmail = "";
     string issueKey = "";
-    bool saveCredentials = true;
 
     public event PropertyChangedEventHandler PropertyChanged;
 
@@ -42,28 +96,10 @@ class FetchFromJiraDialogContext : INotifyPropertyChanged
         return false;
     }
 
-    public string JiraServerUrl
-    {
-        get => jiraServerUrl;
-        set => SetProperty(ref jiraServerUrl, value);
-    }
-
-    public string JiraEmail
-    {
-        get => jiraEmail;
-        set => SetProperty(ref jiraEmail, value);
-    }
-
     public string IssueKey
     {
         get => issueKey;
         set => SetProperty(ref issueKey, value);
-    }
-
-    public bool SaveCredentials
-    {
-        get => saveCredentials;
-        set => SetProperty(ref saveCredentials, value);
     }
 }
 
@@ -241,31 +277,164 @@ void EngineStartingHandler(object sender, EngineStartingEventArgs e)
     e.AddTransactor(jiraTransactor);
 }
 
+async void ManageConnectionsClick(object sender, RoutedEventArgs e)
+{
+    await Extension.OnUiThreadAsync(() =>
+    {
+        var dialog = (Window)Extension.LoadUiElement("ManageConnectionsDialog.xaml");
+        var connections = LoadJiraConnections();
+
+        var connectionsList = (ListBox)dialog.FindName("connectionsList");
+        var connectionName = (TextBox)dialog.FindName("connectionName");
+        var serverUrl = (TextBox)dialog.FindName("serverUrl");
+        var email = (TextBox)dialog.FindName("email");
+        var apiToken = (PasswordBox)dialog.FindName("apiToken");
+        var addButton = (Button)dialog.FindName("addButton");
+        var updateButton = (Button)dialog.FindName("updateButton");
+        var deleteButton = (Button)dialog.FindName("deleteButton");
+        var closeButton = (Button)dialog.FindName("closeButton");
+
+        connectionsList.ItemsSource = connections;
+
+        connectionsList.SelectionChanged += (s, args) =>
+        {
+            var selectedConnection = connectionsList.SelectedItem as JiraConnection;
+            if (selectedConnection != null)
+            {
+                connectionName.Text = selectedConnection.Name;
+                serverUrl.Text = selectedConnection.ServerUrl;
+                email.Text = selectedConnection.Email;
+                apiToken.Password = selectedConnection.ApiToken;
+                updateButton.IsEnabled = true;
+                deleteButton.IsEnabled = true;
+            }
+            else
+            {
+                updateButton.IsEnabled = false;
+                deleteButton.IsEnabled = false;
+            }
+        };
+
+        addButton.Click += (s, args) =>
+        {
+            if (string.IsNullOrWhiteSpace(connectionName.Text) ||
+                string.IsNullOrWhiteSpace(serverUrl.Text) ||
+                string.IsNullOrWhiteSpace(email.Text) ||
+                string.IsNullOrWhiteSpace(apiToken.Password))
+            {
+                MessageDialog.Present(dialog, "Please fill in all fields.", "Missing Information", MessageBoxImage.Warning);
+                return;
+            }
+
+            var newConnection = new JiraConnection
+            {
+                Name = connectionName.Text.Trim(),
+                ServerUrl = serverUrl.Text.Trim(),
+                Email = email.Text.Trim(),
+                ApiToken = apiToken.Password.Trim()
+            };
+
+            connections.Add(newConnection);
+            SaveJiraConnections(connections);
+
+            connectionsList.ItemsSource = null;
+            connectionsList.ItemsSource = connections;
+
+            connectionName.Clear();
+            serverUrl.Clear();
+            email.Clear();
+            apiToken.Clear();
+        };
+
+        updateButton.Click += (s, args) =>
+        {
+            var selectedConnection = connectionsList.SelectedItem as JiraConnection;
+            if (selectedConnection == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(connectionName.Text) ||
+                string.IsNullOrWhiteSpace(serverUrl.Text) ||
+                string.IsNullOrWhiteSpace(email.Text) ||
+                string.IsNullOrWhiteSpace(apiToken.Password))
+            {
+                MessageDialog.Present(dialog, "Please fill in all fields.", "Missing Information", MessageBoxImage.Warning);
+                return;
+            }
+
+            selectedConnection.Name = connectionName.Text.Trim();
+            selectedConnection.ServerUrl = serverUrl.Text.Trim();
+            selectedConnection.Email = email.Text.Trim();
+            selectedConnection.ApiToken = apiToken.Password.Trim();
+
+            SaveJiraConnections(connections);
+
+            connectionsList.ItemsSource = null;
+            connectionsList.ItemsSource = connections;
+        };
+
+        deleteButton.Click += (s, args) =>
+        {
+            var selectedConnection = connectionsList.SelectedItem as JiraConnection;
+            if (selectedConnection == null)
+                return;
+
+            var result = MessageBox.Show(
+                $"Are you sure you want to delete the connection '{selectedConnection.Name}'?",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                connections.Remove(selectedConnection);
+                SaveJiraConnections(connections);
+
+                connectionsList.ItemsSource = null;
+                connectionsList.ItemsSource = connections;
+
+                connectionName.Clear();
+                serverUrl.Clear();
+                email.Clear();
+                apiToken.Clear();
+            }
+        };
+
+        closeButton.Click += (s, args) => dialog.Close();
+
+        updateButton.IsEnabled = false;
+        deleteButton.IsEnabled = false;
+
+        dialog.ShowDialog();
+    });
+}
+
 async void FetchFromJiraClick(object sender, RoutedEventArgs e)
 {
     await Extension.OnUiThreadAsync(async () =>
     {
+        var connections = LoadJiraConnections();
+
+        if (connections.Count == 0)
+        {
+            MessageDialog.Present(
+                "No Jira connections configured. Please use 'Manage Connections' to add a Jira server first.",
+                "No Connections",
+                MessageBoxImage.Warning);
+            return;
+        }
+
         var dialog = (Window)Extension.LoadUiElement("FetchFromJiraDialog.xaml");
         var context = new FetchFromJiraDialogContext();
-
-        var savedServerUrl = Extension.DatabaseStorage?.Get<string>("JiraServerUrl");
-        var savedEmail = Extension.DatabaseStorage?.Get<string>("JiraEmail");
-
-        if (!string.IsNullOrEmpty(savedServerUrl))
-            context.JiraServerUrl = savedServerUrl;
-        if (!string.IsNullOrEmpty(savedEmail))
-            context.JiraEmail = savedEmail;
-
         dialog.DataContext = context;
 
+        var connectionComboBox = (ComboBox)dialog.FindName("connectionComboBox");
         var fetchButton = (Button)dialog.FindName("fetchButton");
         var cancelButton = (Button)dialog.FindName("cancelButton");
-        var apiTokenBox = (PasswordBox)dialog.FindName("jiraApiToken");
         var statusMessage = (TextBlock)dialog.FindName("statusMessage");
 
-        var savedApiToken = Extension.DatabaseStorage?.Get<string>("JiraApiToken");
-        if (!string.IsNullOrEmpty(savedApiToken))
-            apiTokenBox.Password = savedApiToken;
+        connectionComboBox.ItemsSource = connections;
+        if (connections.Count > 0)
+            connectionComboBox.SelectedIndex = 0;
 
         fetchButton.Click += async (s, args) =>
         {
@@ -274,31 +443,33 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
                 fetchButton.IsEnabled = false;
                 statusMessage.Text = "Fetching issue from Jira...";
 
-                var serverUrl = context.JiraServerUrl?.Trim();
-                var email = context.JiraEmail?.Trim();
-                var apiToken = apiTokenBox.Password?.Trim();
+                var selectedConnection = connectionComboBox.SelectedItem as JiraConnection;
                 var issueKey = context.IssueKey?.Trim();
 
-                if (string.IsNullOrEmpty(serverUrl) || string.IsNullOrEmpty(email) ||
-                    string.IsNullOrEmpty(apiToken) || string.IsNullOrEmpty(issueKey))
+                if (selectedConnection == null)
                 {
-                    MessageDialog.Present(dialog, "Please fill in all fields.", "Missing Information", MessageBoxImage.Warning);
+                    MessageDialog.Present(dialog, "Please select a Jira connection.", "Missing Connection", MessageBoxImage.Warning);
                     statusMessage.Text = "";
                     fetchButton.IsEnabled = true;
                     return;
                 }
 
-                var jiraIssue = await FetchJiraIssueAsync(serverUrl, email, apiToken, issueKey);
+                if (string.IsNullOrEmpty(issueKey))
+                {
+                    MessageDialog.Present(dialog, "Please enter an issue key.", "Missing Issue Key", MessageBoxImage.Warning);
+                    statusMessage.Text = "";
+                    fetchButton.IsEnabled = true;
+                    return;
+                }
+
+                var jiraIssue = await FetchJiraIssueAsync(
+                    selectedConnection.ServerUrl,
+                    selectedConnection.Email,
+                    selectedConnection.ApiToken,
+                    issueKey);
 
                 statusMessage.Text = "Creating work item in Grindstone...";
                 await CreateWorkItemFromJiraIssueAsync(jiraIssue);
-
-                if (context.SaveCredentials && Extension.DatabaseStorage != null)
-                {
-                    Extension.DatabaseStorage.Set("JiraServerUrl", serverUrl);
-                    Extension.DatabaseStorage.Set("JiraEmail", email);
-                    Extension.DatabaseStorage.Set("JiraApiToken", apiToken);
-                }
 
                 MessageDialog.Present(dialog,
                     $"Successfully created work item for {jiraIssue.Key}:\n{jiraIssue.Summary}",
@@ -329,9 +500,13 @@ await Extension.OnUiThreadAsync(() =>
 {
     var jiraMenuItem = new RadMenuItem { Header = "Jira Integration" };
 
+    var manageConnectionsMenuItem = new RadMenuItem { Header = "Manage Connections" };
+    manageConnectionsMenuItem.Click += ManageConnectionsClick;
+
     var fetchMenuItem = new RadMenuItem { Header = "Fetch from Jira" };
     fetchMenuItem.Click += FetchFromJiraClick;
 
+    jiraMenuItem.Items.Add(manageConnectionsMenuItem);
     jiraMenuItem.Items.Add(fetchMenuItem);
 
     Extension.PostMessage(extensionsMenuExtensionId, jiraMenuItem);
