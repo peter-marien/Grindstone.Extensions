@@ -113,6 +113,21 @@ class JiraIssue
     public string Priority { get; set; }
 }
 
+async Task<bool> TestJiraConnectionAsync(string serverUrl, string email, string apiToken)
+{
+    using (var client = new HttpClient())
+    {
+        var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{email}:{apiToken}"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var url = $"{serverUrl.TrimEnd('/')}/rest/api/3/myself";
+        var response = await client.GetAsync(url);
+
+        return response.IsSuccessStatusCode;
+    }
+}
+
 async Task<JiraIssue> FetchJiraIssueAsync(string serverUrl, string email, string apiToken, string issueKey)
 {
     using (var client = new HttpClient())
@@ -292,6 +307,7 @@ async void ManageConnectionsClick(object sender, RoutedEventArgs e)
         var addButton = (Button)dialog.FindName("addButton");
         var updateButton = (Button)dialog.FindName("updateButton");
         var deleteButton = (Button)dialog.FindName("deleteButton");
+        var testButton = (Button)dialog.FindName("testButton");
         var closeButton = (Button)dialog.FindName("closeButton");
 
         connectionsList.ItemsSource = connections;
@@ -307,11 +323,13 @@ async void ManageConnectionsClick(object sender, RoutedEventArgs e)
                 apiToken.Password = selectedConnection.ApiToken;
                 updateButton.IsEnabled = true;
                 deleteButton.IsEnabled = true;
+                testButton.IsEnabled = true;
             }
             else
             {
                 updateButton.IsEnabled = false;
                 deleteButton.IsEnabled = false;
+                testButton.IsEnabled = false;
             }
         };
 
@@ -399,10 +417,51 @@ async void ManageConnectionsClick(object sender, RoutedEventArgs e)
             }
         };
 
+        testButton.Click += async (s, args) =>
+        {
+            if (string.IsNullOrWhiteSpace(serverUrl.Text) ||
+                string.IsNullOrWhiteSpace(email.Text) ||
+                string.IsNullOrWhiteSpace(apiToken.Password))
+            {
+                MessageDialog.Present(dialog, "Please fill in Server URL, Email, and API Token to test the connection.", "Missing Information", MessageBoxImage.Warning);
+                return;
+            }
+
+            testButton.IsEnabled = false;
+            testButton.Content = "Testing...";
+
+            try
+            {
+                var success = await TestJiraConnectionAsync(
+                    serverUrl.Text.Trim(),
+                    email.Text.Trim(),
+                    apiToken.Password.Trim());
+
+                if (success)
+                {
+                    MessageDialog.Present(dialog, "Connection successful! You can authenticate with this Jira server.", "Test Successful", MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageDialog.Present(dialog, "Connection failed. Please check your Server URL, Email, and API Token.", "Test Failed", MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageDialog.Present(dialog, $"Connection test failed:\n{ex.Message}", "Test Error", MessageBoxImage.Error);
+            }
+            finally
+            {
+                testButton.IsEnabled = true;
+                testButton.Content = "Test";
+            }
+        };
+
         closeButton.Click += (s, args) => dialog.Close();
 
         updateButton.IsEnabled = false;
         deleteButton.IsEnabled = false;
+        testButton.IsEnabled = false;
 
         dialog.ShowDialog();
     });
