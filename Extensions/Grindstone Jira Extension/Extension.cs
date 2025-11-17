@@ -218,7 +218,7 @@ string ParseJiraDescription(object descriptionObj)
     return descriptionObj.ToString();
 }
 
-async Task CreateWorkItemFromJiraIssueAsync(JiraIssue jiraIssue)
+async Task CreateWorkItemFromJiraIssueAsync(JiraIssue jiraIssue, string connectionName)
 {
     if (jiraTransactor == null)
         throw new InvalidOperationException("Transactor not initialized. Extension may not be fully loaded.");
@@ -236,9 +236,37 @@ async Task CreateWorkItemFromJiraIssueAsync(JiraIssue jiraIssue)
     foreach (var kvp in currentSnapshot.Attributes)
         attributes.Add(kvp.Key, kvp.Value);
 
+    var jiraKeyAttributeId = Guid.Empty;
+    var jiraConnectionAttributeId = Guid.Empty;
+
+    foreach (var attr in attributes)
+    {
+        if (attr.Value.Name == "Jira Key")
+            jiraKeyAttributeId = attr.Key;
+        if (attr.Value.Name == "Jira Connection")
+            jiraConnectionAttributeId = attr.Key;
+    }
+
+    if (jiraKeyAttributeId == Guid.Empty)
+    {
+        jiraKeyAttributeId = Guid.NewGuid();
+        attributes.Add(jiraKeyAttributeId, new Quantum.Entities.Attribute("Jira Key", "The Jira issue key for this work item"));
+    }
+
+    if (jiraConnectionAttributeId == Guid.Empty)
+    {
+        jiraConnectionAttributeId = Guid.NewGuid();
+        attributes.Add(jiraConnectionAttributeId, new Quantum.Entities.Attribute("Jira Connection", "The Jira connection used to fetch this work item"));
+    }
+
     var attributeValues = new Dictionary<AttributeObjectCompositeKey, object>();
     foreach (var kvp in currentSnapshot.AttributeValues)
         attributeValues.Add(kvp.Key, kvp.Value);
+
+    var newWorkItemId = Guid.NewGuid();
+
+    attributeValues.Add(new AttributeObjectCompositeKey(jiraKeyAttributeId, newWorkItemId), jiraIssue.Key);
+    attributeValues.Add(new AttributeObjectCompositeKey(jiraConnectionAttributeId, newWorkItemId), connectionName);
 
     var enumerationValues = new Dictionary<Guid, AttributeCorrelation<EnumerationValue>>();
     foreach (var kvp in currentSnapshot.EnumerationValues)
@@ -251,7 +279,7 @@ async Task CreateWorkItemFromJiraIssueAsync(JiraIssue jiraIssue)
     var items = new Dictionary<Guid, Item>();
     foreach (var kvp in currentSnapshot.Items)
         items.Add(kvp.Key, kvp.Value);
-    items.Add(Guid.NewGuid(), new Item(workItemName, workItemNotes));
+    items.Add(newWorkItemId, new Item(workItemName, workItemNotes));
 
     var people = new Dictionary<Guid, Person>();
     foreach (var kvp in currentSnapshot.People)
@@ -528,7 +556,7 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
                     issueKey);
 
                 statusMessage.Text = "Creating work item in Grindstone...";
-                await CreateWorkItemFromJiraIssueAsync(jiraIssue);
+                await CreateWorkItemFromJiraIssueAsync(jiraIssue, selectedConnection.Name);
 
                 MessageDialog.Present(dialog,
                     $"Successfully created work item for {jiraIssue.Key}:\n{jiraIssue.Summary}",
