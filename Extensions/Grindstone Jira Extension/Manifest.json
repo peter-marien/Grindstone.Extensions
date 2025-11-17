@@ -1,4 +1,9 @@
 {
     "id": "{A7B9C3D2-5E4F-4A1B-8C6D-9E2F7A3B5C8D}",
-    "name": "Grindstone Jira Extension"
+    "name": "Grindstone Jira Extension",
+    "globalAssemblyCacheReferences": [
+        "PresentationFramework",
+        "System.Net.Http",
+        "System.Web.Extensions"
+    ]
 }
