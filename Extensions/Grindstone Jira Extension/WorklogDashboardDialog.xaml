@@ -1,0 +1,73 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Height="600" Width="900"
+        Title="Worklog Dashboard"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Date Navigation -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" x:Name="previousDayButton" Width="30" Margin="0,0,5,0" Padding="5">&lt;</Button>
+            <DatePicker Grid.Column="1" x:Name="selectedDate" Width="150" Margin="0,0,10,0" />
+            <TextBlock Grid.Column="2" x:Name="dateDisplayText" FontSize="16" FontWeight="Bold"
+                       VerticalAlignment="Center" HorizontalAlignment="Left" />
+            <Button Grid.Column="3" x:Name="todayButton" Width="60" Margin="0,0,5,0" Padding="5">Today</Button>
+            <Button Grid.Column="4" x:Name="nextDayButton" Width="30" Padding="5">&gt;</Button>
+        </Grid>
+
+        <!-- Summary Row -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" x:Name="totalTimeText" FontSize="14" FontWeight="Bold" />
+            <TextBlock Grid.Column="1" x:Name="entryCountText" FontSize="14" FontWeight="Bold" />
+            <Button Grid.Column="2" x:Name="refreshButton" Width="100" Padding="5"
+                    HorizontalAlignment="Right">Refresh</Button>
+        </Grid>
+
+        <!-- Worklogs DataGrid -->
+        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1">
+            <DataGrid x:Name="worklogsGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      AlternatingRowBackground="WhiteSmoke">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Start Time" Binding="{Binding StartTime}" Width="120" />
+                    <DataGridTextColumn Header="End Time" Binding="{Binding EndTime}" Width="120" />
+                    <DataGridTextColumn Header="Duration" Binding="{Binding Duration}" Width="80" />
+                    <DataGridTextColumn Header="Work Item" Binding="{Binding WorkItemName}" Width="*" MinWidth="150" />
+                    <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" MinWidth="200" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- Close Button -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="closeButton" Width="100" Padding="5">Close</Button>
+        </StackPanel>
+    </Grid>
+</Window>

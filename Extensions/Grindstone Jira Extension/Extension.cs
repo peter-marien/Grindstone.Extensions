@@ -161,6 +161,15 @@ class JiraWorklog
     public int TimeSpentSeconds { get; set; }
 }
 
+class WorklogDisplayItem
+{
+    public string StartTime { get; set; }
+    public string EndTime { get; set; }
+    public string Duration { get; set; }
+    public string WorkItemName { get; set; }
+    public string Notes { get; set; }
+}
+
 async Task<bool> TestJiraConnectionAsync(string serverUrl, string email, string apiToken)
 {
     using (var client = new HttpClient())
@@ -1080,6 +1089,178 @@ async void ImportWorklogsClick(object sender, RoutedEventArgs e)
     });
 }
 
+async void WorklogDashboardClick(object sender, RoutedEventArgs e)
+{
+    await Extension.OnUiThreadAsync(async () =>
+    {
+        if (jiraTransactor == null)
+        {
+            MessageDialog.Present(
+                "The extension is not fully initialized. Please wait for Grindstone to finish loading.",
+                "Not Ready",
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var dialog = (Window)Extension.LoadUiElement("WorklogDashboardDialog.xaml");
+
+        var selectedDate = (DatePicker)dialog.FindName("selectedDate");
+        var dateDisplayText = (TextBlock)dialog.FindName("dateDisplayText");
+        var previousDayButton = (Button)dialog.FindName("previousDayButton");
+        var nextDayButton = (Button)dialog.FindName("nextDayButton");
+        var todayButton = (Button)dialog.FindName("todayButton");
+        var refreshButton = (Button)dialog.FindName("refreshButton");
+        var worklogsGrid = (System.Windows.Controls.DataGrid)dialog.FindName("worklogsGrid");
+        var totalTimeText = (TextBlock)dialog.FindName("totalTimeText");
+        var entryCountText = (TextBlock)dialog.FindName("entryCountText");
+        var closeButton = (Button)dialog.FindName("closeButton");
+
+        selectedDate.SelectedDate = DateTime.Today;
+
+        Action loadWorklogs = async () =>
+        {
+            try
+            {
+                if (!selectedDate.SelectedDate.HasValue)
+                    return;
+
+                var currentDate = selectedDate.SelectedDate.Value;
+                dateDisplayText.Text = currentDate.ToString("dddd, MMMM d, yyyy");
+
+                var snapshot = await jiraTransactor.SnapshotAsync();
+                var currentPersonId = snapshot.People.FirstOrDefault().Key;
+
+                if (currentPersonId == Guid.Empty)
+                    return;
+
+                var startOfDay = currentDate.Date;
+                var endOfDay = startOfDay.AddDays(1);
+
+                var worklogs = new List<WorklogDisplayItem>();
+
+                foreach (var periodEntry in snapshot.Periods.Values)
+                {
+                    if (periodEntry.PersonId != currentPersonId)
+                        continue;
+
+                    var workItem = snapshot.Items.ContainsKey(periodEntry.ItemId)
+                        ? snapshot.Items[periodEntry.ItemId]
+                        : null;
+
+                    if (workItem == null)
+                        continue;
+
+                    var period = periodEntry.CorrelatedEntity;
+                    var periodStart = period.Start;
+                    var periodEnd = period.End;
+                    var isInProgress = periodEnd > DateTime.Now.AddYears(50); // Assuming MaxValue or far future means in progress
+                    if (isInProgress)
+                        periodEnd = DateTime.Now;
+
+                    // Check if period overlaps with the selected day
+                    if (periodStart.Date == currentDate.Date ||
+                        periodEnd.Date == currentDate.Date)
+                    {
+                        var effectiveStart = periodStart < startOfDay ? startOfDay : periodStart;
+                        var effectiveEnd = periodEnd > endOfDay ? endOfDay : periodEnd;
+
+                        if (effectiveStart >= endOfDay)
+                            continue;
+
+                        var duration = effectiveEnd - effectiveStart;
+                        var hours = (int)duration.TotalHours;
+                        var minutes = duration.Minutes;
+                        var durationText = hours > 0
+                            ? $"{hours}h {minutes}m"
+                            : $"{minutes}m";
+
+                        worklogs.Add(new WorklogDisplayItem
+                        {
+                            StartTime = periodStart.ToString("yyyy-MM-dd HH:mm:ss"),
+                            EndTime = isInProgress
+                                ? "In Progress"
+                                : periodEnd.ToString("yyyy-MM-dd HH:mm:ss"),
+                            Duration = durationText,
+                            WorkItemName = workItem.Name,
+                            Notes = period.Notes ?? ""
+                        });
+                    }
+                }
+
+                // Sort by start time
+                worklogs = worklogs.OrderBy(w => w.StartTime).ToList();
+                worklogsGrid.ItemsSource = worklogs;
+
+                // Calculate totals
+                var totalMinutes = 0;
+                foreach (var periodEntry in snapshot.Periods.Values)
+                {
+                    if (periodEntry.PersonId != currentPersonId)
+                        continue;
+
+                    var period = periodEntry.CorrelatedEntity;
+                    var periodStart = period.Start;
+                    var periodEnd = period.End;
+                    if (periodEnd > DateTime.Now.AddYears(50))
+                        periodEnd = DateTime.Now;
+
+                    if (periodStart.Date == currentDate.Date ||
+                        periodEnd.Date == currentDate.Date)
+                    {
+                        var effectiveStart = periodStart < startOfDay ? startOfDay : periodStart;
+                        var effectiveEnd = periodEnd > endOfDay ? endOfDay : periodEnd;
+
+                        if (effectiveStart < endOfDay)
+                        {
+                            totalMinutes += (int)(effectiveEnd - effectiveStart).TotalMinutes;
+                        }
+                    }
+                }
+
+                var totalHours = totalMinutes / 60;
+                var remainingMinutes = totalMinutes % 60;
+                totalTimeText.Text = $"Total Time: {totalHours}h {remainingMinutes}m";
+                entryCountText.Text = $"Entries: {worklogs.Count}";
+            }
+            catch (Exception ex)
+            {
+                ShowErrorDialog("Error Loading Worklogs", "Failed to load worklogs from Grindstone.", ex);
+            }
+        };
+
+        loadWorklogs();
+
+        selectedDate.SelectedDateChanged += (s, args) => loadWorklogs();
+
+        previousDayButton.Click += (s, args) =>
+        {
+            if (selectedDate.SelectedDate.HasValue)
+            {
+                selectedDate.SelectedDate = selectedDate.SelectedDate.Value.AddDays(-1);
+            }
+        };
+
+        nextDayButton.Click += (s, args) =>
+        {
+            if (selectedDate.SelectedDate.HasValue)
+            {
+                selectedDate.SelectedDate = selectedDate.SelectedDate.Value.AddDays(1);
+            }
+        };
+
+        todayButton.Click += (s, args) =>
+        {
+            selectedDate.SelectedDate = DateTime.Today;
+        };
+
+        refreshButton.Click += (s, args) => loadWorklogs();
+
+        closeButton.Click += (s, args) => dialog.Close();
+
+        dialog.ShowDialog();
+    });
+}
+
 var extensionsMenuExtensionId = Guid.Parse("{27F65593-7235-4108-B5D9-F0DE417D8536}");
 
 Extension.EngineStarting += EngineStartingHandler;
@@ -1097,9 +1278,13 @@ await Extension.OnUiThreadAsync(() =>
     var importWorklogsMenuItem = new RadMenuItem { Header = "Import Worklogs" };
     importWorklogsMenuItem.Click += ImportWorklogsClick;
 
+    var worklogDashboardMenuItem = new RadMenuItem { Header = "Worklog Dashboard" };
+    worklogDashboardMenuItem.Click += WorklogDashboardClick;
+
     jiraMenuItem.Items.Add(manageConnectionsMenuItem);
     jiraMenuItem.Items.Add(createWorkItemMenuItem);
     jiraMenuItem.Items.Add(importWorklogsMenuItem);
+    jiraMenuItem.Items.Add(worklogDashboardMenuItem);
 
     Extension.PostMessage(extensionsMenuExtensionId, jiraMenuItem);
 });
