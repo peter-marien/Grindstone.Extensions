@@ -40,8 +40,10 @@
 
             <TextBlock Grid.Column="0" x:Name="totalTimeText" FontSize="14" FontWeight="Bold" />
             <TextBlock Grid.Column="1" x:Name="entryCountText" FontSize="14" FontWeight="Bold" />
-            <Button Grid.Column="2" x:Name="refreshButton" Width="100" Padding="5"
-                    HorizontalAlignment="Right">Refresh</Button>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="syncToJiraButton" Width="100" Margin="0,0,5,0" Padding="5">Sync to Jira</Button>
+                <Button x:Name="refreshButton" Width="100" Padding="5">Refresh</Button>
+            </StackPanel>
         </Grid>
 
         <!-- Worklogs DataGrid -->

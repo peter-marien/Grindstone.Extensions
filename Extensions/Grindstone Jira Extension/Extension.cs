@@ -168,6 +168,63 @@ class WorklogDisplayItem
     public string Duration { get; set; }
     public string WorkItemName { get; set; }
     public string Notes { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid ItemId { get; set; }
+}
+
+async Task<bool> SyncWorklogToJiraAsync(string serverUrl, string email, string apiToken, string issueKey, DateTime started, int timeSpentSeconds, string comment)
+{
+    using (var client = new HttpClient())
+    {
+        var credentials = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{email}:{apiToken}"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", credentials);
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var url = $"{serverUrl.TrimEnd('/')}/rest/api/3/issue/{issueKey}/worklog";
+
+        var worklogData = new Dictionary<string, object>
+        {
+            { "started", started.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fff+0000") },
+            { "timeSpentSeconds", timeSpentSeconds },
+            { "comment", new Dictionary<string, object>
+                {
+                    { "type", "doc" },
+                    { "version", 1 },
+                    { "content", new object[]
+                        {
+                            new Dictionary<string, object>
+                            {
+                                { "type", "paragraph" },
+                                { "content", new object[]
+                                    {
+                                        new Dictionary<string, object>
+                                        {
+                                            { "type", "text" },
+                                            { "text", comment ?? "" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+        var jsonContent = serializer.Serialize(worklogData);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(url, content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to sync worklog: {response.StatusCode}\n{errorContent}");
+        }
+
+        return true;
+    }
 }
 
 async Task<bool> TestJiraConnectionAsync(string serverUrl, string email, string apiToken)
@@ -1109,6 +1166,7 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
         var previousDayButton = (Button)dialog.FindName("previousDayButton");
         var nextDayButton = (Button)dialog.FindName("nextDayButton");
         var todayButton = (Button)dialog.FindName("todayButton");
+        var syncToJiraButton = (Button)dialog.FindName("syncToJiraButton");
         var refreshButton = (Button)dialog.FindName("refreshButton");
         var worklogsGrid = (System.Windows.Controls.DataGrid)dialog.FindName("worklogsGrid");
         var totalTimeText = (TextBlock)dialog.FindName("totalTimeText");
@@ -1138,8 +1196,11 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
 
                 var worklogs = new List<WorklogDisplayItem>();
 
-                foreach (var periodEntry in snapshot.Periods.Values)
+                foreach (var periodKvp in snapshot.Periods)
                 {
+                    var periodId = periodKvp.Key;
+                    var periodEntry = periodKvp.Value;
+
                     if (periodEntry.PersonId != currentPersonId)
                         continue;
 
@@ -1182,7 +1243,9 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                                 : periodEnd.ToString("yyyy-MM-dd HH:mm:ss"),
                             Duration = durationText,
                             WorkItemName = workItem.Name,
-                            Notes = period.Notes ?? ""
+                            Notes = period.Notes ?? "",
+                            PeriodId = periodId,
+                            ItemId = periodEntry.ItemId
                         });
                     }
                 }
@@ -1254,6 +1317,186 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
         };
 
         refreshButton.Click += (s, args) => loadWorklogs();
+
+        syncToJiraButton.Click += async (s, args) =>
+        {
+            try
+            {
+                syncToJiraButton.IsEnabled = false;
+
+                var snapshot = await jiraTransactor.SnapshotAsync();
+                var currentWorklogs = worklogsGrid.ItemsSource as List<WorklogDisplayItem>;
+
+                if (currentWorklogs == null || currentWorklogs.Count == 0)
+                {
+                    MessageDialog.Present(dialog, "No worklogs to sync.", "No Worklogs", MessageBoxImage.Information);
+                    syncToJiraButton.IsEnabled = true;
+                    return;
+                }
+
+                // Get attribute IDs for Jira Key and Jira Connection
+                var jiraKeyAttributeEntry = snapshot.Attributes.FirstOrDefault(kvp => kvp.Value.Name == "Jira Key");
+                var jiraConnectionAttributeEntry = snapshot.Attributes.FirstOrDefault(kvp => kvp.Value.Name == "Jira Connection");
+
+                if (jiraKeyAttributeEntry.Key == Guid.Empty || jiraConnectionAttributeEntry.Key == Guid.Empty)
+                {
+                    MessageDialog.Present(dialog,
+                        "Required custom attributes 'Jira Key' and/or 'Jira Connection' not found. Please create work items from Jira first.",
+                        "Missing Attributes",
+                        MessageBoxImage.Warning);
+                    syncToJiraButton.IsEnabled = true;
+                    return;
+                }
+
+                // Check which worklogs have Jira Key
+                var worklogsWithJiraKey = new List<WorklogDisplayItem>();
+                var worklogsWithoutJiraKey = new List<WorklogDisplayItem>();
+
+                foreach (var worklog in currentWorklogs)
+                {
+                    var jiraKeyValue = snapshot.AttributeValues
+                        .Where(kvp => kvp.Key.AttributeId == jiraKeyAttributeEntry.Key && kvp.Key.ObjectId == worklog.ItemId)
+                        .Select(kvp => kvp.Value as string)
+                        .FirstOrDefault();
+
+                    if (!string.IsNullOrEmpty(jiraKeyValue))
+                    {
+                        worklogsWithJiraKey.Add(worklog);
+                    }
+                    else
+                    {
+                        worklogsWithoutJiraKey.Add(worklog);
+                    }
+                }
+
+                // If some worklogs don't have Jira Key, show warning
+                if (worklogsWithoutJiraKey.Count > 0)
+                {
+                    var message = $"{worklogsWithoutJiraKey.Count} out of {currentWorklogs.Count} worklog(s) do not have a Jira Key assigned.\n\n" +
+                                  "These worklogs will be skipped:\n";
+
+                    var maxDisplay = Math.Min(5, worklogsWithoutJiraKey.Count);
+                    for (int i = 0; i < maxDisplay; i++)
+                    {
+                        message += $"- {worklogsWithoutJiraKey[i].WorkItemName}\n";
+                    }
+
+                    if (worklogsWithoutJiraKey.Count > maxDisplay)
+                    {
+                        message += $"... and {worklogsWithoutJiraKey.Count - maxDisplay} more\n";
+                    }
+
+                    message += "\nDo you want to proceed with syncing the remaining worklogs?";
+
+                    var result = MessageBox.Show(dialog, message, "Missing Jira Keys", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+                    if (result != MessageBoxResult.Yes)
+                    {
+                        syncToJiraButton.IsEnabled = true;
+                        return;
+                    }
+                }
+
+                if (worklogsWithJiraKey.Count == 0)
+                {
+                    MessageDialog.Present(dialog, "No worklogs with Jira Key found to sync.", "Nothing to Sync", MessageBoxImage.Information);
+                    syncToJiraButton.IsEnabled = true;
+                    return;
+                }
+
+                // Get Jira connections
+                var connections = LoadJiraConnections();
+                var connectionsByName = connections.ToDictionary(c => c.Name, c => c);
+
+                // Sync each worklog
+                var syncedCount = 0;
+                var failedCount = 0;
+                var errors = new List<string>();
+
+                foreach (var worklog in worklogsWithJiraKey)
+                {
+                    try
+                    {
+                        var jiraKeyValue = snapshot.AttributeValues
+                            .Where(kvp => kvp.Key.AttributeId == jiraKeyAttributeEntry.Key && kvp.Key.ObjectId == worklog.ItemId)
+                            .Select(kvp => kvp.Value as string)
+                            .FirstOrDefault();
+
+                        var jiraConnectionValue = snapshot.AttributeValues
+                            .Where(kvp => kvp.Key.AttributeId == jiraConnectionAttributeEntry.Key && kvp.Key.ObjectId == worklog.ItemId)
+                            .Select(kvp => kvp.Value as string)
+                            .FirstOrDefault();
+
+                        if (string.IsNullOrEmpty(jiraConnectionValue) || !connectionsByName.ContainsKey(jiraConnectionValue))
+                        {
+                            errors.Add($"{worklog.WorkItemName}: No valid Jira connection found");
+                            failedCount++;
+                            continue;
+                        }
+
+                        var connection = connectionsByName[jiraConnectionValue];
+
+                        // Get period details
+                        var periodEntry = snapshot.Periods[worklog.PeriodId];
+                        var period = periodEntry.CorrelatedEntity;
+                        var timeSpentSeconds = (int)(period.End - period.Start).TotalSeconds;
+
+                        if (timeSpentSeconds <= 0)
+                        {
+                            errors.Add($"{worklog.WorkItemName}: Invalid duration");
+                            failedCount++;
+                            continue;
+                        }
+
+                        await SyncWorklogToJiraAsync(
+                            connection.ServerUrl,
+                            connection.Email,
+                            connection.ApiToken,
+                            jiraKeyValue,
+                            period.Start,
+                            timeSpentSeconds,
+                            period.Notes
+                        );
+
+                        syncedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"{worklog.WorkItemName}: {ex.Message}");
+                        failedCount++;
+                    }
+                }
+
+                // Show results
+                var resultMessage = $"Sync completed!\n\nSuccessful: {syncedCount}\nFailed: {failedCount}";
+
+                if (errors.Count > 0)
+                {
+                    resultMessage += "\n\nErrors:\n";
+                    var maxErrors = Math.Min(5, errors.Count);
+                    for (int i = 0; i < maxErrors; i++)
+                    {
+                        resultMessage += $"- {errors[i]}\n";
+                    }
+                    if (errors.Count > maxErrors)
+                    {
+                        resultMessage += $"... and {errors.Count - maxErrors} more errors";
+                    }
+                }
+
+                MessageDialog.Present(dialog,
+                    resultMessage,
+                    "Sync Results",
+                    failedCount > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+
+                syncToJiraButton.IsEnabled = true;
+            }
+            catch (Exception ex)
+            {
+                ShowErrorDialog("Error Syncing to Jira", "Failed to sync worklogs to Jira.", ex);
+                syncToJiraButton.IsEnabled = true;
+            }
+        };
 
         closeButton.Click += (s, args) => dialog.Close();
 
