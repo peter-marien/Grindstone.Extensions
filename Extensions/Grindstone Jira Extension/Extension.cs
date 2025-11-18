@@ -113,7 +113,7 @@ void SaveJiraConnections(List<JiraConnection> connections)
     Extension.DatabaseStorage?.Set(JiraConnectionsStorageKey, json);
 }
 
-class FetchFromJiraDialogContext : INotifyPropertyChanged
+class CreateWorkItemFromJiraDialogContext : INotifyPropertyChanged
 {
     string issueKey = "";
 
@@ -888,7 +888,7 @@ async void ManageConnectionsClick(object sender, RoutedEventArgs e)
     });
 }
 
-async void FetchFromJiraClick(object sender, RoutedEventArgs e)
+async void CreateWorkItemFromJiraClick(object sender, RoutedEventArgs e)
 {
     await Extension.OnUiThreadAsync(async () =>
     {
@@ -903,12 +903,12 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
             return;
         }
 
-        var dialog = (Window)Extension.LoadUiElement("FetchFromJiraDialog.xaml");
-        var context = new FetchFromJiraDialogContext();
+        var dialog = (Window)Extension.LoadUiElement("CreateWorkItemFromJiraDialog.xaml");
+        var context = new CreateWorkItemFromJiraDialogContext();
         dialog.DataContext = context;
 
         var connectionComboBox = (ComboBox)dialog.FindName("connectionComboBox");
-        var fetchButton = (Button)dialog.FindName("fetchButton");
+        var createButton = (Button)dialog.FindName("createButton");
         var cancelButton = (Button)dialog.FindName("cancelButton");
         var statusMessage = (TextBlock)dialog.FindName("statusMessage");
 
@@ -916,11 +916,11 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
         if (connections.Count > 0)
             connectionComboBox.SelectedIndex = 0;
 
-        fetchButton.Click += async (s, args) =>
+        createButton.Click += async (s, args) =>
         {
             try
             {
-                fetchButton.IsEnabled = false;
+                createButton.IsEnabled = false;
                 statusMessage.Text = "Fetching issue from Jira...";
 
                 var selectedConnection = connectionComboBox.SelectedItem as JiraConnection;
@@ -930,7 +930,7 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
                 {
                     MessageDialog.Present(dialog, "Please select a Jira connection.", "Missing Connection", MessageBoxImage.Warning);
                     statusMessage.Text = "";
-                    fetchButton.IsEnabled = true;
+                    createButton.IsEnabled = true;
                     return;
                 }
 
@@ -938,7 +938,7 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
                 {
                     MessageDialog.Present(dialog, "Please enter an issue key.", "Missing Issue Key", MessageBoxImage.Warning);
                     statusMessage.Text = "";
-                    fetchButton.IsEnabled = true;
+                    createButton.IsEnabled = true;
                     return;
                 }
 
@@ -961,8 +961,8 @@ async void FetchFromJiraClick(object sender, RoutedEventArgs e)
             catch (Exception ex)
             {
                 statusMessage.Text = "";
-                ShowErrorDialog("Error Fetching Issue", "Failed to fetch the issue from Jira. Please verify the issue key and connection settings.", ex);
-                fetchButton.IsEnabled = true;
+                ShowErrorDialog("Error Creating Work Item", "Failed to create work item from Jira. Please verify the issue key and connection settings.", ex);
+                createButton.IsEnabled = true;
             }
         };
 
@@ -1091,14 +1091,14 @@ await Extension.OnUiThreadAsync(() =>
     var manageConnectionsMenuItem = new RadMenuItem { Header = "Manage Connections" };
     manageConnectionsMenuItem.Click += ManageConnectionsClick;
 
-    var fetchMenuItem = new RadMenuItem { Header = "Fetch from Jira" };
-    fetchMenuItem.Click += FetchFromJiraClick;
+    var createWorkItemMenuItem = new RadMenuItem { Header = "Create Work Item from Jira" };
+    createWorkItemMenuItem.Click += CreateWorkItemFromJiraClick;
 
     var importWorklogsMenuItem = new RadMenuItem { Header = "Import Worklogs" };
     importWorklogsMenuItem.Click += ImportWorklogsClick;
 
     jiraMenuItem.Items.Add(manageConnectionsMenuItem);
-    jiraMenuItem.Items.Add(fetchMenuItem);
+    jiraMenuItem.Items.Add(createWorkItemMenuItem);
     jiraMenuItem.Items.Add(importWorklogsMenuItem);
 
     Extension.PostMessage(extensionsMenuExtensionId, jiraMenuItem);
