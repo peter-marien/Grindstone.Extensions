@@ -98,6 +98,7 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Work Item" Binding="{Binding WorkItemName}" Width="*" MinWidth="200" />
                     <DataGridTextColumn Header="Jira Key" Binding="{Binding JiraKey}" Width="Auto" />
+                    <DataGridTextColumn Header="Jira Connection" Binding="{Binding JiraConnection}" Width="Auto" />
                     <DataGridTextColumn Header="Start" Binding="{Binding StartTime, StringFormat={}{0:HH:mm:ss}}" Width="80" />
                     <DataGridTextColumn Header="End" Binding="{Binding EndTime, StringFormat={}{0:HH:mm:ss}}" Width="80" />
                     <DataGridTextColumn Header="Duration" Binding="{Binding Duration}" Width="80" />
