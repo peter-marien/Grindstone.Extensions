@@ -82,6 +82,14 @@
                         <Setter Property="BorderThickness" Value="0,0,1,1"/>
                         <Setter Property="FontWeight" Value="Normal"/>
                     </Style>
+                    <Style TargetType="DataGridRow">
+                        <Style.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#61a9e0" />
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#61a9e0" />
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White" />
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
+                        </Style.Resources>
+                    </Style>
                     <Style TargetType="DataGridCell">
                         <Setter Property="Padding" Value="5,2,5,2"/>
                         <Setter Property="Template">
