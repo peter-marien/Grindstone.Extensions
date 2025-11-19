@@ -25,9 +25,13 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" x:Name="previousDayButton" Width="30" Margin="0,0,5,0" Padding="5">&lt;</Button>
+            <Button Grid.Column="0" x:Name="previousDayButton" Width="30" Margin="0,0,5,0" Padding="5">
+                <Path Data="M 6,0 L 0,6 L 6,12" Stroke="Black" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Button>
             <DatePicker Grid.Column="1" x:Name="selectedDate" Width="150" Margin="0,0,5,0" />
-            <Button Grid.Column="2" x:Name="nextDayButton" Width="30" Margin="0,0,10,0" Padding="5">&gt;</Button>
+            <Button Grid.Column="2" x:Name="nextDayButton" Width="30" Margin="0,0,10,0" Padding="5">
+                <Path Data="M 0,0 L 6,6 L 0,12" Stroke="Black" StrokeThickness="2" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Button>
             <TextBlock Grid.Column="3" x:Name="dateDisplayText" FontSize="16" FontWeight="Bold"
                        VerticalAlignment="Center" HorizontalAlignment="Left" />
             <Button Grid.Column="4" x:Name="todayButton" Width="60" Padding="5">Today</Button>
