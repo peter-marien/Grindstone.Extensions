@@ -8,6 +8,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -46,8 +47,13 @@
             </StackPanel>
         </Grid>
 
+        <!-- Time Bar -->
+        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Margin="0,0,0,10" Height="40">
+            <Canvas x:Name="timeBarCanvas" Background="#F0F0F0" ClipToBounds="True" />
+        </Border>
+
         <!-- Worklogs DataGrid -->
-        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1">
+        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1">
             <DataGrid x:Name="worklogsGrid"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
@@ -68,7 +74,7 @@
         </Border>
 
         <!-- Close Button -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button x:Name="closeButton" Width="100" Padding="5">Close</Button>
         </StackPanel>
     </Grid>

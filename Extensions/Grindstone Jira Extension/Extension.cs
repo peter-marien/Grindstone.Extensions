@@ -1172,8 +1172,153 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
         var totalTimeText = (TextBlock)dialog.FindName("totalTimeText");
         var entryCountText = (TextBlock)dialog.FindName("entryCountText");
         var closeButton = (Button)dialog.FindName("closeButton");
+        var timeBarCanvas = (Canvas)dialog.FindName("timeBarCanvas");
 
         selectedDate.SelectedDate = DateTime.Today;
+
+        Quantum.Entities.Frame currentSnapshot = null;
+
+        Action renderTimeBar = () =>
+        {
+            if (currentSnapshot == null || !selectedDate.SelectedDate.HasValue || timeBarCanvas.ActualWidth == 0)
+                return;
+
+            var currentDate = selectedDate.SelectedDate.Value;
+            var startOfDay = currentDate.Date;
+            var endOfDay = startOfDay.AddDays(1);
+            var currentPersonId = currentSnapshot.People.FirstOrDefault().Key;
+
+            if (currentPersonId == Guid.Empty)
+                return;
+
+            timeBarCanvas.Children.Clear();
+
+            // Calculate time range
+            var minHour = 8;
+            var maxHour = 18;
+            var hasWorklogs = false;
+
+            foreach (var periodEntry in currentSnapshot.Periods.Values)
+            {
+                if (periodEntry.PersonId != currentPersonId) continue;
+                var p = periodEntry.CorrelatedEntity;
+                if (p.Start.Date == currentDate.Date || p.End.Date == currentDate.Date)
+                {
+                    var effectiveStart = p.Start < startOfDay ? startOfDay : p.Start;
+                    var effectiveEnd = p.End > endOfDay ? endOfDay : (p.End > DateTime.Now.AddYears(50) ? DateTime.Now : p.End);
+                    
+                    if (effectiveStart < effectiveEnd)
+                    {
+                        if (!hasWorklogs)
+                        {
+                            minHour = effectiveStart.Hour;
+                            maxHour = effectiveEnd.Hour + (effectiveEnd.Minute > 0 ? 1 : 0);
+                            hasWorklogs = true;
+                        }
+                        else
+                        {
+                            minHour = Math.Min(minHour, effectiveStart.Hour);
+                            maxHour = Math.Max(maxHour, effectiveEnd.Hour + (effectiveEnd.Minute > 0 ? 1 : 0));
+                        }
+                    }
+                }
+            }
+
+            if (maxHour <= minHour) maxHour = minHour + 1;
+            
+            // Add some padding if possible
+            // minHour = Math.Max(0, minHour - 1);
+            // maxHour = Math.Min(24, maxHour + 1);
+
+            var totalHours = maxHour - minHour;
+
+            // Draw hour markers
+            for (int i = minHour; i <= maxHour; i++)
+            {
+                var x = ((i - minHour) / (double)totalHours) * timeBarCanvas.ActualWidth;
+                var line = new System.Windows.Shapes.Line
+                {
+                    X1 = x,
+                    Y1 = 0,
+                    X2 = x,
+                    Y2 = timeBarCanvas.ActualHeight,
+                    Stroke = System.Windows.Media.Brushes.LightGray,
+                    StrokeThickness = 1
+                };
+                timeBarCanvas.Children.Add(line);
+
+                // Show label for every hour if space permits, or every 2 hours
+                if (totalHours <= 12 || i % 2 == 0)
+                {
+                    var textBlock = new TextBlock
+                    {
+                        Text = $"{i:00}:00",
+                        FontSize = 10,
+                        Foreground = System.Windows.Media.Brushes.Gray
+                    };
+                    
+                    // Center text
+                    textBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    Canvas.SetLeft(textBlock, x - (textBlock.DesiredSize.Width / 2));
+                    Canvas.SetTop(textBlock, timeBarCanvas.ActualHeight - 15);
+                    timeBarCanvas.Children.Add(textBlock);
+                }
+            }
+
+            // Draw worklog rectangles
+            foreach (var periodEntry in currentSnapshot.Periods.Values)
+            {
+                if (periodEntry.PersonId != currentPersonId)
+                    continue;
+
+                var period = periodEntry.CorrelatedEntity;
+                var periodStart = period.Start;
+                var periodEnd = period.End;
+                if (periodEnd > DateTime.Now.AddYears(50))
+                    periodEnd = DateTime.Now;
+
+                if (periodStart.Date == currentDate.Date ||
+                    periodEnd.Date == currentDate.Date)
+                {
+                    var effectiveStart = periodStart < startOfDay ? startOfDay : periodStart;
+                    var effectiveEnd = periodEnd > endOfDay ? endOfDay : periodEnd;
+
+                    if (effectiveStart < endOfDay)
+                    {
+                        var totalMinutes = (int)(effectiveEnd - effectiveStart).TotalMinutes;
+                        var startOffsetMinutes = (effectiveStart - startOfDay).TotalMinutes - (minHour * 60);
+                        
+                        if (startOffsetMinutes < 0) 
+                        {
+                            // Should not happen if logic is correct, but clamp just in case
+                            totalMinutes += (int)startOffsetMinutes;
+                            startOffsetMinutes = 0;
+                        }
+
+                        var left = (startOffsetMinutes / (totalHours * 60.0)) * timeBarCanvas.ActualWidth;
+                        var width = (totalMinutes / (totalHours * 60.0)) * timeBarCanvas.ActualWidth;
+
+                        if (width < 1) width = 1; // Minimum width visibility
+
+                        var rect = new System.Windows.Shapes.Rectangle
+                        {
+                            Width = width,
+                            Height = 20,
+                            Fill = System.Windows.Media.Brushes.CornflowerBlue,
+                            Stroke = System.Windows.Media.Brushes.DarkBlue,
+                            StrokeThickness = 1,
+                            ToolTip = $"{currentSnapshot.Items[periodEntry.ItemId].Name}\n{effectiveStart:HH:mm} - {effectiveEnd:HH:mm}"
+                        };
+
+                        Canvas.SetLeft(rect, left);
+                        Canvas.SetTop(rect, 5);
+                        timeBarCanvas.Children.Add(rect);
+                    }
+                }
+            }
+        };
+
+        timeBarCanvas.SizeChanged += (s, args) => renderTimeBar();
 
         Action loadWorklogs = async () =>
         {
@@ -1185,8 +1330,8 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                 var currentDate = selectedDate.SelectedDate.Value;
                 dateDisplayText.Text = currentDate.ToString("dddd, MMMM d, yyyy");
 
-                var snapshot = await jiraTransactor.SnapshotAsync();
-                var currentPersonId = snapshot.People.FirstOrDefault().Key;
+                currentSnapshot = await jiraTransactor.SnapshotAsync();
+                var currentPersonId = currentSnapshot.People.FirstOrDefault().Key;
 
                 if (currentPersonId == Guid.Empty)
                     return;
@@ -1196,7 +1341,7 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
 
                 var worklogs = new List<WorklogDisplayItem>();
 
-                foreach (var periodKvp in snapshot.Periods)
+                foreach (var periodKvp in currentSnapshot.Periods)
                 {
                     var periodId = periodKvp.Key;
                     var periodEntry = periodKvp.Value;
@@ -1204,8 +1349,8 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                     if (periodEntry.PersonId != currentPersonId)
                         continue;
 
-                    var workItem = snapshot.Items.ContainsKey(periodEntry.ItemId)
-                        ? snapshot.Items[periodEntry.ItemId]
+                    var workItem = currentSnapshot.Items.ContainsKey(periodEntry.ItemId)
+                        ? currentSnapshot.Items[periodEntry.ItemId]
                         : null;
 
                     if (workItem == null)
@@ -1254,9 +1399,11 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                 worklogs = worklogs.OrderBy(w => w.StartTime).ToList();
                 worklogsGrid.ItemsSource = worklogs;
 
+                renderTimeBar();
+
                 // Calculate totals
-                var totalMinutes = 0;
-                foreach (var periodEntry in snapshot.Periods.Values)
+                var totalMinutesCalc = 0;
+                foreach (var periodEntry in currentSnapshot.Periods.Values)
                 {
                     if (periodEntry.PersonId != currentPersonId)
                         continue;
@@ -1275,13 +1422,13 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
 
                         if (effectiveStart < endOfDay)
                         {
-                            totalMinutes += (int)(effectiveEnd - effectiveStart).TotalMinutes;
+                            totalMinutesCalc += (int)(effectiveEnd - effectiveStart).TotalMinutes;
                         }
                     }
                 }
 
-                var totalHours = totalMinutes / 60;
-                var remainingMinutes = totalMinutes % 60;
+                var totalHours = totalMinutesCalc / 60;
+                var remainingMinutes = totalMinutesCalc % 60;
                 totalTimeText.Text = $"Total Time: {totalHours}h {remainingMinutes}m";
                 entryCountText.Text = $"Entries: {worklogs.Count}";
             }
