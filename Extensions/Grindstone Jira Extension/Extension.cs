@@ -1304,8 +1304,8 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                         {
                             Width = width,
                             Height = 20,
-                            Fill = System.Windows.Media.Brushes.CornflowerBlue,
-                            Stroke = System.Windows.Media.Brushes.DarkBlue,
+                            Fill = System.Windows.Media.Brushes.LightBlue,
+                            Stroke = System.Windows.Media.Brushes.White,
                             StrokeThickness = 1,
                             ToolTip = $"{currentSnapshot.Items[periodEntry.ItemId].Name}\n{effectiveStart:HH:mm} - {effectiveEnd:HH:mm}"
                         };

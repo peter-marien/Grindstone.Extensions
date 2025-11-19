@@ -3,7 +3,9 @@
         Height="600" Width="900"
         Title="Worklog Dashboard"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize"
+        Background="White"
+        FontFamily="Segoe UI">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -18,17 +20,17 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0" x:Name="previousDayButton" Width="30" Margin="0,0,5,0" Padding="5">&lt;</Button>
-            <DatePicker Grid.Column="1" x:Name="selectedDate" Width="150" Margin="0,0,10,0" />
-            <TextBlock Grid.Column="2" x:Name="dateDisplayText" FontSize="16" FontWeight="Bold"
+            <DatePicker Grid.Column="1" x:Name="selectedDate" Width="150" Margin="0,0,5,0" />
+            <Button Grid.Column="2" x:Name="nextDayButton" Width="30" Margin="0,0,10,0" Padding="5">&gt;</Button>
+            <TextBlock Grid.Column="3" x:Name="dateDisplayText" FontSize="16" FontWeight="Bold"
                        VerticalAlignment="Center" HorizontalAlignment="Left" />
-            <Button Grid.Column="3" x:Name="todayButton" Width="60" Margin="0,0,5,0" Padding="5">Today</Button>
-            <Button Grid.Column="4" x:Name="nextDayButton" Width="30" Padding="5">&gt;</Button>
+            <Button Grid.Column="4" x:Name="todayButton" Width="60" Padding="5">Today</Button>
         </Grid>
 
         <!-- Summary Row -->
@@ -53,22 +55,48 @@
         </Border>
 
         <!-- Worklogs DataGrid -->
-        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1">
+        <Border Grid.Row="3" BorderBrush="#A0A0A0" BorderThickness="1">
             <DataGrid x:Name="worklogsGrid"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
                       SelectionMode="Single"
                       CanUserAddRows="False"
                       CanUserDeleteRows="False"
-                      GridLinesVisibility="Horizontal"
+                      GridLinesVisibility="All"
                       HeadersVisibility="Column"
-                      AlternatingRowBackground="WhiteSmoke">
+                      Background="White"
+                      RowBackground="White"
+                      AlternatingRowBackground="#F8F8F8"
+                      HorizontalGridLinesBrush="#E0E0E0"
+                      VerticalGridLinesBrush="#E0E0E0"
+                      BorderThickness="0">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Padding" Value="5,3,5,3"/>
+                        <Setter Property="Background" Value="#F0F0F0"/>
+                        <Setter Property="BorderBrush" Value="#D0D0D0"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        <Setter Property="FontWeight" Value="Normal"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Padding" Value="5,2,5,2"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="DataGridCell">
+                                    <Border Padding="{TemplateBinding Padding}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                                        <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </DataGrid.Resources>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Start Time" Binding="{Binding StartTime}" Width="120" />
-                    <DataGridTextColumn Header="End Time" Binding="{Binding EndTime}" Width="120" />
+                    <DataGridTextColumn Header="Work Item" Binding="{Binding WorkItemName}" Width="*" MinWidth="200" />
+                    <DataGridTextColumn Header="Start" Binding="{Binding StartTime, StringFormat={}{0:HH:mm:ss}}" Width="80" />
+                    <DataGridTextColumn Header="End" Binding="{Binding EndTime, StringFormat={}{0:HH:mm:ss}}" Width="80" />
                     <DataGridTextColumn Header="Duration" Binding="{Binding Duration}" Width="80" />
-                    <DataGridTextColumn Header="Work Item" Binding="{Binding WorkItemName}" Width="*" MinWidth="150" />
-                    <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" MinWidth="200" />
+                    <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" MinWidth="150" />
                 </DataGrid.Columns>
             </DataGrid>
         </Border>

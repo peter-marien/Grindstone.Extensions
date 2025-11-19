@@ -3,7 +3,9 @@
         Height="280" Width="500"
         Title="Import Worklogs from Jira"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize">
+        ResizeMode="NoResize"
+        Background="White"
+        FontFamily="Segoe UI">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

@@ -4,7 +4,9 @@
         Height="500" Width="700"
         Title="Manage Jira Connections"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize"
+        Background="White"
+        FontFamily="Segoe UI">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />

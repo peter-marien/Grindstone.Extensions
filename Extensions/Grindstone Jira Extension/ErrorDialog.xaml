@@ -3,7 +3,9 @@
         Height="400" Width="600"
         Title="Error"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize"
+        Background="White"
+        FontFamily="Segoe UI">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
