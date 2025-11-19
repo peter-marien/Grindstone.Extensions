@@ -170,6 +170,7 @@ class WorklogDisplayItem
     public string Notes { get; set; }
     public Guid PeriodId { get; set; }
     public Guid ItemId { get; set; }
+    public string JiraKey { get; set; }
 }
 
 async Task<bool> SyncWorklogToJiraAsync(string serverUrl, string email, string apiToken, string issueKey, DateTime started, int timeSpentSeconds, string comment)
@@ -1341,6 +1342,11 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
 
                 var worklogs = new List<WorklogDisplayItem>();
 
+                // Get Jira Key attribute ID
+                var jiraKeyAttributeId = currentSnapshot.Attributes
+                    .FirstOrDefault(kvp => kvp.Value.Name == "Jira Key")
+                    .Key;
+
                 foreach (var periodKvp in currentSnapshot.Periods)
                 {
                     var periodId = periodKvp.Key;
@@ -1390,7 +1396,10 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                             WorkItemName = workItem.Name,
                             Notes = period.Notes ?? "",
                             PeriodId = periodId,
-                            ItemId = periodEntry.ItemId
+                            ItemId = periodEntry.ItemId,
+                            JiraKey = jiraKeyAttributeId != Guid.Empty && currentSnapshot.AttributeValues.TryGetValue(new AttributeObjectCompositeKey(jiraKeyAttributeId, periodEntry.ItemId), out var jiraKeyVal)
+                                ? jiraKeyVal as string
+                                : ""
                         });
                     }
                 }
