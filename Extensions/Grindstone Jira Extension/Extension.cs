@@ -1513,9 +1513,9 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                     return;
                 }
 
-                // Check which worklogs have Jira Key
-                var worklogsWithJiraKey = new List<WorklogDisplayItem>();
-                var worklogsWithoutJiraKey = new List<WorklogDisplayItem>();
+                // Check which worklogs have Jira Key and Jira Connection
+                var worklogsToSync = new List<WorklogDisplayItem>();
+                var worklogsSkipped = new List<WorklogDisplayItem>();
 
                 foreach (var worklog in currentWorklogs)
                 {
@@ -1524,36 +1524,41 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                         .Select(kvp => kvp.Value as string)
                         .FirstOrDefault();
 
-                    if (!string.IsNullOrEmpty(jiraKeyValue))
+                    var jiraConnectionValue = snapshot.AttributeValues
+                        .Where(kvp => kvp.Key.AttributeId == jiraConnectionAttributeEntry.Key && kvp.Key.ObjectId == worklog.ItemId)
+                        .Select(kvp => kvp.Value as string)
+                        .FirstOrDefault();
+
+                    if (!string.IsNullOrEmpty(jiraKeyValue) && !string.IsNullOrEmpty(jiraConnectionValue))
                     {
-                        worklogsWithJiraKey.Add(worklog);
+                        worklogsToSync.Add(worklog);
                     }
                     else
                     {
-                        worklogsWithoutJiraKey.Add(worklog);
+                        worklogsSkipped.Add(worklog);
                     }
                 }
 
-                // If some worklogs don't have Jira Key, show warning
-                if (worklogsWithoutJiraKey.Count > 0)
+                // If some worklogs don't have Jira Key or Jira Connection, show warning
+                if (worklogsSkipped.Count > 0)
                 {
-                    var message = $"{worklogsWithoutJiraKey.Count} out of {currentWorklogs.Count} worklog(s) do not have a Jira Key assigned.\n\n" +
+                    var message = $"{worklogsSkipped.Count} out of {currentWorklogs.Count} worklog(s) do not have a Jira Key and/or Jira Connection assigned.\n\n" +
                                   "These worklogs will be skipped:\n";
 
-                    var maxDisplay = Math.Min(5, worklogsWithoutJiraKey.Count);
+                    var maxDisplay = Math.Min(5, worklogsSkipped.Count);
                     for (int i = 0; i < maxDisplay; i++)
                     {
-                        message += $"- {worklogsWithoutJiraKey[i].WorkItemName}\n";
+                        message += $"- {worklogsSkipped[i].WorkItemName}\n";
                     }
 
-                    if (worklogsWithoutJiraKey.Count > maxDisplay)
+                    if (worklogsSkipped.Count > maxDisplay)
                     {
-                        message += $"... and {worklogsWithoutJiraKey.Count - maxDisplay} more\n";
+                        message += $"... and {worklogsSkipped.Count - maxDisplay} more\n";
                     }
 
                     message += "\nDo you want to proceed with syncing the remaining worklogs?";
 
-                    var result = MessageBox.Show(dialog, message, "Missing Jira Keys", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    var result = MessageBox.Show(dialog, message, "Missing Jira Info", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
                     if (result != MessageBoxResult.Yes)
                     {
@@ -1562,9 +1567,9 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                     }
                 }
 
-                if (worklogsWithJiraKey.Count == 0)
+                if (worklogsToSync.Count == 0)
                 {
-                    MessageDialog.Present(dialog, "No worklogs with Jira Key found to sync.", "Nothing to Sync", MessageBoxImage.Information);
+                    MessageDialog.Present(dialog, "No worklogs with Jira Key and Jira Connection found to sync.", "Nothing to Sync", MessageBoxImage.Information);
                     syncToJiraButton.IsEnabled = true;
                     return;
                 }
@@ -1578,7 +1583,7 @@ async void WorklogDashboardClick(object sender, RoutedEventArgs e)
                 var failedCount = 0;
                 var errors = new List<string>();
 
-                foreach (var worklog in worklogsWithJiraKey)
+                foreach (var worklog in worklogsToSync)
                 {
                     try
                     {
