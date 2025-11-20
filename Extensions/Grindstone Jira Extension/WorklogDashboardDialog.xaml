@@ -77,12 +77,14 @@
                 <DataGrid.Resources>
                     <Style TargetType="DataGridColumnHeader">
                         <Setter Property="Padding" Value="5,3,5,3"/>
-                        <Setter Property="Background" Value="#F0F0F0"/>
+                        <Setter Property="Background" Value="#61a9e0"/>
+                        <Setter Property="Foreground" Value="White"/>
                         <Setter Property="BorderBrush" Value="#D0D0D0"/>
                         <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                        <Setter Property="FontWeight" Value="Normal"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
                     </Style>
                     <Style TargetType="DataGridRow">
+                        <Setter Property="IsHitTestVisible" Value="False"/>
                         <Style.Resources>
                             <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#61a9e0" />
                             <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#61a9e0" />
