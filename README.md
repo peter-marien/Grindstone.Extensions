@@ -20,10 +20,19 @@ This extension integrates [Grindstone 4](https://www.epiforge.com/grindstone/) w
 
 ### 4. Worklog Dashboard
 -   View a daily summary of your worklogs.
--   Visual time bar showing your work distribution throughout the day.
+-   **Dynamic Time-Bar**: Visualizes your work distribution throughout the day, automatically adjusting the range based on your earliest and latest logs.
+-   **Enhanced DataGrid**: Includes columns for 'Jira Key' and 'Jira Connection' for better visibility.
 -   **Sync to Jira**: Upload your local Grindstone time tracking data to Jira.
     -   Ensures work items are properly linked (requires both 'Jira Key' and 'Jira Connection').
     -   Validates data before syncing.
+
+### 5. Monthly Overview
+-   **Matrix View**: Displays a comprehensive overview of hours worked per work item for each day of the selected month.
+-   **Statistics**:
+    -   **Total Workdays**: Counts the number of weekdays (Mon-Fri) in the month.
+    -   **Average Hours/WorkDay**: Calculates the average hours worked on weekdays where work was logged.
+    -   **Overtime**: Tracks your overtime balance based on a standard 8-hour workday (Total Hours - (Total Weekdays * 8)).
+-   **Summary**: Includes a "Total" row summing up hours for each day and a grand total for the month.
 
 ## Installation & Deployment
 
