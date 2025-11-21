@@ -13,6 +13,25 @@ if (!(Test-Path $destPath)) {
     New-Item -ItemType Directory -Force -Path $destPath | Out-Null
 }
 
-Copy-Item -Path "$sourcePath\*" -Destination $destPath -Recurse -Force
+$extensions = Get-ChildItem -Path $sourcePath -Directory
+
+foreach ($ext in $extensions) {
+    $extName = $ext.Name
+    $extSourcePath = $ext.FullName
+    $extDestPath = Join-Path $destPath $extName
+
+    Write-Host "Deploying '$extName'..."
+
+    if (Test-Path $extDestPath) {
+        Write-Host "  Cleaning target directory..."
+        Remove-Item -Path "$extDestPath\*" -Recurse -Force
+    }
+    else {
+        New-Item -ItemType Directory -Force -Path $extDestPath | Out-Null
+    }
+
+    Write-Host "  Copying files..."
+    Copy-Item -Path "$extSourcePath\*" -Destination $extDestPath -Recurse -Force
+}
 
 Write-Host "Deployment complete!" -ForegroundColor Green
